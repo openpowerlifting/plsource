@@ -1,0 +1,16 @@
+tiles:
+-
+  name: 'OpenPowerlifting'
+  img: 'logos/openpowerlifting.svg'
+  bg_color: "#000000"
+  url: 'https://openpowerlifting.org'
+  tags: ['primary']
+-
+  name: 'OpenLifter (Beta!)'
+  url: 'http://beta.openlifter.com'
+  tags: ['primary']
+-
+  name: 'IPF Points Calculator'
+  img: 'logos/ipf-points-calculator.png'
+  bg_color: "#dddddd"
+  url: 'https://www.ipfpointscalculator.com'
