@@ -1,0 +1,320 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,user-scalable=no,initial-scale=1">
+  <meta name="application-name" content="Kumbhaka Breath">
+  <meta name="description" content="Visual aid for training the Kumbhaka Breath">
+  <meta name="keyword" content="kumbhaka,pranayama,breath hold">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <title>Kumbhaka Breath</title>
+
+  <style>
+    body {
+      font-family: Helvetica, sans-serif;
+      color: white;
+      background-color: #1a1a1a;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    a { color: white; }
+    #breathCanvas {
+      margin-bottom: 20px;
+    }
+    #controlPanel {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: absolute;
+      top: 18px;
+      left: 18px;
+    }
+    #controlPanelButtons {
+      background-color: rgba(0, 0, 0, 0.5);
+      padding: 10px;
+      border-radius: 5px;
+      color: white;
+    }
+    button {
+      background-color: #282828;
+      color: #eeeeee;
+      border: 1px solid #333333;
+      padding: 4px 7px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: bold;
+    }
+    #buttonLeft {
+      margin-right: 10px;
+    }
+    #buttonRight {
+      margin-left: 10px;
+    }
+    #helpButton {
+      background-color: #;
+      color: #eeeeee;
+      border: none;
+      border-rodius: 50%;
+      width: 30px;
+      height: 30px;
+      font-size: 16px;
+      margin-left: 10px;
+    }
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 20px;
+      z-index: 1000;
+    }
+    .modal-content {
+      background-color: #2c2c2c;
+      border-radius: 10px;
+      max-width: 600px;
+      margin: auto;
+      padding: 20px;
+      text-align: center;
+    }
+    #closeHelp {
+      padding: 10px 20px;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="breathCanvas" width="800" height="200"></canvas>
+  <div id="controlPanel">
+    <div id="controlPanelButtons">
+      <button id="buttonLeft">&larr;</button>
+      <span id="currentLevel">4 4 4</span>
+      <button id="buttonRight">&rarr;</button>
+    </div>
+    <button id="helpButton" onclick="show_help()">?</button>
+  </div>
+
+  <div id="helpModal" class="modal">
+    <div class="modal-content">
+      <h2>Kumbhaka Breath Hold</h2>
+      <p>
+        This is a training aid for mastering the Kumbhaka Hold, as introduced in the text
+        <a href="https://archive.org/details/chogyal-namkhai-norbu-yantra-yoga-the-tibetan-yoga-of-movement/page/n73/mode/2up">
+          <i>Yantra Yoga: the Tibetan Yoga of Movement</i>
+        </a>&nbsp;by Chögyal Namkhai Norbu, p. 140.
+      </p>
+      <p>Please follow the instructions linked above, under the section "Breathing Method".</p>
+      <p>
+        The line moving up represents inhalation and a closed hold.
+        The line moving down represents exhalation and an open hold.
+      </p>
+      <p>
+        You can use the top-left controls or the keyboard left/right arrow buttons to change level.
+        The space bar resets to the start of a fresh inhalation.
+      </p>
+      <p>Please relax and enjoy!</p>
+      <button id="closeHelp" onclick="close_help()">Close</button>
+    </div>
+  </div>
+
+  <script>
+    // @license magnet:?xt=urn:btih:0b31508aeb0634b347b8270c7bee4d411b5d4109&dn=agpl-3.0.txt AGPL-v3-or-Later
+    // An auto-generated Kumbhaka progression table according to the progression rules.
+    let KUMBHAKA_TABLE = function(){
+      let table = [[4, 4, 4]]; // [inhalation, closed hold, exhalation + open hold].
+      function get_next(table) {
+        let [inhale, closed_hold, exhale_hold] = table[table.length - 1];
+        // Increase the closed hold by 2 counts until it's twice the exhale hold.
+        if (closed_hold < exhale_hold * 2) return [inhale, closed_hold + 2, exhale_hold];
+        // If the exhale hold is already twice the inhale, increase the inhale and reset.
+        if (exhale_hold == inhale * 2) return [inhale + 2, inhale + 2, inhale + 2];
+        // Otherwise, increase the exhale hold, and decrease the closed hold to match.
+        return [inhale, exhale_hold + 2, exhale_hold + 2];
+      }
+      for (i = 0; i < 399; ++i) table.push(get_next(table));
+      return table;
+    }();
+    const MINOR_KUMBHAKA = KUMBHAKA_TABLE.slice(0, 69); // From [4,4,4] to [8,32,16].
+    const MEDIUM_KUMBHAKA = KUMBHAKA_TABLE.slice(70, 190); // From [10,10,10] to [12,48,24].
+    const MAJOR_KUMBHAKA = KUMBHAKA_TABLE.slice(191, 399); // From [14,14,14] to [16,64,32].
+    // @license-end
+  </script>
+
+  <script>
+    // @license magnet:?xt=urn:btih:0b31508aeb0634b347b8270c7bee4d411b5d4109&dn=agpl-3.0.txt AGPL-v3-or-Later
+    const currentLevel = document.getElementById("currentLevel");
+    const canvas = document.getElementById("breathCanvas");
+    const ctx = canvas.getContext("2d");
+
+    // Customization.
+    const WIDTH_MILLIS_MORE = 8000; // Gives a few seconds of notice at a calm speed.
+    const WIDTH_MILLIS_LESS = 1000; // Looks like a flat line most of the time. Artistic.
+    let width_millis = WIDTH_MILLIS_MORE; // How many millis does the canvas width represent?
+    const now_offset_px = canvas.width / 5; // Where is "now" in the canvas as an x-offset?
+
+    // Shared state updated by the animation process.
+    let startTimestamp = 0; // Time reference in millis for the cycle start, or zero. Drift is fine.
+    let kumbhaka_idx = 0; // Index of current cycle in the KUMBHAKA_TABLE.
+
+    // Starts the animation from the the Minor Kumbhaka table.
+    function start_animation() {
+      startTimestamp = document.timeline.currentTime; // Timestep of the 0th frame.
+      animate(startTimestamp); // Calls requestsAnimationFrame() internally.
+    }
+
+    // Helper function to take a positive modulus, e.g., modulus(-50, 150) == 100.
+    function modulus(a, b) {
+      return ((a % b) + b) % b
+    }
+
+    // Draws the animation content, requesting further animation frames.
+    function animate(timestamp) {
+      let cycle = KUMBHAKA_TABLE[kumbhaka_idx]; // Current cycle in the Kumbhaka table.
+      let cycle_length_millis = (cycle[0] + cycle[1] + cycle[2]) * 1000; // Full length of a cycle.
+
+      // Convert the current cycle to an array of the 4 phases, as start time offsets in millis.
+      let cycle_starts_millis = [
+        0, // Inhalation.
+        cycle[0] * 1000, // Closed hold.
+        (cycle[0] + cycle[1]) * 1000, // Exhalation
+        (cycle[0] + cycle[1] + (cycle[2] / 2)) * 1000, // Open hold.
+        cycle_length_millis, // Not a phase, but here to allow saying "phase+1" later on.
+      ];
+
+      // What phase of the cycle are we in now?
+      let in_cycle_millis = (timestamp - startTimestamp) % cycle_length_millis;
+
+      const millis_per_px = width_millis / canvas.width;
+
+      const y_margin_px = 20; // Margin for the active breath line on the top and bottom.
+      const top = y_margin_px; // Y-value for a breath line at the top of the canvas.
+      const bottom = canvas.height - y_margin_px; // Y-value for a breath line at the bottom of the canvas.
+
+      // Calculate the millis into the cycle at the x=0 leftmost side of the canvas.
+      const zero_millis = modulus(in_cycle_millis - (now_offset_px * millis_per_px), cycle_length_millis);
+
+      // What phase is drawn all the way at the left?
+      let phase = 0; // One of [0,1,2,3]
+      if (zero_millis < cycle_starts_millis[1]) { phase = 0; } // Inhalation.
+      else if (zero_millis < cycle_starts_millis[2]) { phase = 1; } // Closed hold.
+      else if (zero_millis < cycle_starts_millis[3]) { phase = 2; } // Exhalation.
+      else { phase = 3; } // Open hold.
+
+      // What's the starting x-coordinate of that phase (may be negative)?
+      let x = (cycle_starts_millis[phase] - zero_millis) / millis_per_px;
+
+      // Put down the pen at the starting point. It's drawn as one line, in segments.
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.lineJoin = "round";
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = "#4f9fcf";
+      ctx.beginPath();
+      switch (phase) {
+        case 0: ctx.moveTo(x, bottom); break;
+        case 1: ctx.moveTo(x, top); break;
+        case 2: ctx.moveTo(x, top); break;
+        case 3: ctx.moveTo(x, bottom); break;
+      }
+
+      // March in pixels from that starting point to the end of the canvas, drawing lines along the way.
+      while (x <= canvas.width) {
+        let end_x = x + ((cycle_starts_millis[phase + 1] - cycle_starts_millis[phase]) / millis_per_px);
+        let bezier_offset_px = (end_x - x) * 0.5; // 
+        switch (phase) {
+          case 0: // Inhalation.
+            ctx.bezierCurveTo(x + bezier_offset_px, bottom, end_x - bezier_offset_px, top, end_x, top);
+            break;
+          case 1: ctx.lineTo(end_x, top); break; // Closed hold.
+          case 2: // Exhalation.
+            ctx.bezierCurveTo(x + bezier_offset_px, top, end_x - bezier_offset_px, bottom, end_x, bottom);
+            break;
+          case 3: ctx.lineTo(end_x, bottom); break; // Open hold.
+        }
+        x = end_x; // Shift the starting x-position for the next phase.
+        phase = (phase + 1) % 4; // Advance the phase.
+      }
+      ctx.stroke();
+
+      // Draw an offset vertical line representing the current time.
+      ctx.beginPath()
+      ctx.moveTo(now_offset_px, 0);
+      ctx.lineTo(now_offset_px, canvas.height);
+      ctx.lineWidth = 2;
+      ctx.lineCap = "butt";
+      ctx.strokeStyle = "#d9c6b4";
+      ctx.stroke();
+
+      requestAnimationFrame(animate);
+    }
+
+    // Show the current Kumbhaka selection in the control panel and update buttons.
+    function update_control_panel() {
+      currentLevel.textContent = KUMBHAKA_TABLE[kumbhaka_idx].join(" ");
+    }
+
+    // Move the kumbhaka index left by one. This makes the training easier.
+    function on_click_left() {
+      kumbhaka_idx = Math.max(kumbhaka_idx - 1, 0);
+      update_control_panel();
+    }
+    // Move the kumbhaka index right by one. This makes the training harder.
+    function on_click_right() {
+      kumbhaka_idx = Math.min(kumbhaka_idx + 1, KUMBHAKA_TABLE.length - 1);
+      update_control_panel();
+    }
+
+    // Easter egg to change the speed if you click somewhere.
+    function change_speed_easter_egg(event) {
+      // Ensure that the body or canvas were clicked on directly.
+      if (event.target !== document.querySelector("body") && event.target !== canvas) return;
+      switch (width_millis) {
+        case WIDTH_MILLIS_MORE: width_millis = WIDTH_MILLIS_LESS; break;
+        case WIDTH_MILLIS_LESS: width_millis = WIDTH_MILLIS_MORE; break;
+      }
+      event.stopPropagation();
+    }
+
+    function show_help() {
+      document.getElementById("helpModal").style.display = "flex";
+    }
+    function close_help() {
+      document.getElementById("helpModal").style.display = "none";
+    }
+
+    // Keys are used to change the current entry in the Kumbhaka table.
+    function on_keydown(event) {
+      switch (event.key) {
+        case "ArrowLeft": on_click_left(); break; // Make easier.
+        case "ArrowRight": on_click_right(); break; // Make harder.
+        case " ": start_animation(); break; // Start from a fresh inhalation.
+        case "?": show_help(); break;
+        case "Escape": close_help(); break;
+        default: break;
+      }
+    }
+
+    function on_content_loaded() {
+      window.addEventListener("keydown", on_keydown);
+      document.getElementById("buttonLeft").addEventListener("click", on_click_left);
+      document.getElementById("buttonRight").addEventListener("click", on_click_right);
+      document.querySelector("body").addEventListener("click", change_speed_easter_egg);
+      canvas.addEventListener("click", change_speed_easter_egg);
+
+      update_control_panel(); // Update the control panel with the current Kumbhaka level.
+      start_animation();
+    }
+
+    document.addEventListener("DOMContentLoaded", function(e){on_content_loaded()})
+    // @license-end
+  </script>
+</body>
+</html>
