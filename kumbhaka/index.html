@@ -265,11 +265,13 @@
     function on_click_left() {
       kumbhaka_idx = Math.max(kumbhaka_idx - 1, 0);
       update_control_panel();
+      start_animation(); // Begin from a fresh inhalation.
     }
     // Move the kumbhaka index right by one. This makes the training harder.
     function on_click_right() {
       kumbhaka_idx = Math.min(kumbhaka_idx + 1, KUMBHAKA_TABLE.length - 1);
       update_control_panel();
+      start_animation(); // Begin from a fresh inhalation.
     }
 
     // Easter egg to change the speed if you click somewhere.
