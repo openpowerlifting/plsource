@@ -41,6 +41,9 @@
       border-radius: 5px;
       color: white;
     }
+    #currentLevel {
+      padding-top: 4px;
+    }
     button {
       background-color: #282828;
       color: #eeeeee;
@@ -75,9 +78,12 @@
       width: 100%;
       height: 100%;
       background-color: rgba(0, 0, 0, 0.7);
-      color: white;
+      color: #dddddd;
       padding: 20px;
       z-index: 1000;
+    }
+    h3 {
+      color: white;
     }
     .modal-content {
       background-color: #2c2c2c;
@@ -86,6 +92,7 @@
       margin: auto;
       padding: 20px;
       text-align: center;
+      font-size: 16px;
     }
     #closeHelp {
       padding: 10px 20px;
@@ -105,24 +112,38 @@
 
   <div id="helpModal" class="modal">
     <div class="modal-content">
-      <h2>Kumbhaka Breath Hold</h2>
+      <h3>What is this?</h3>
       <p>
-        This is a training aid for mastering the Kumbhaka Hold, as introduced in the text
+        This is a training aid for mastering the Kumbhaka Hold, as described in
         <a href="https://archive.org/details/chogyal-namkhai-norbu-yantra-yoga-the-tibetan-yoga-of-movement/page/n73/mode/2up">
           <i>Yantra Yoga: the Tibetan Yoga of Movement</i>
-        </a>&nbsp;by Chögyal Namkhai Norbu, p. 140.
+        </a>&nbsp;by Chögyal Namkhai Norbu, p.140.
       </p>
-      <p>Please follow the instructions linked above, under the section "Breathing Method".</p>
       <p>
-        The line moving up represents inhalation and a closed hold.
-        The line moving down represents exhalation and an open hold.
+        The Kumbhaka Hold is a form of Box Breathing. It's an ancient technique for activating the
+        parasympathetic nervous system, calming the fabricating mind.
       </p>
+
+      <h3>Instructions</h3>
+      <p>
+        The top-left corner shows the current training level, like <b>4 10 6</b>.
+        That means a 4-count inhale, a 10-count hold with air, and a 6-count exhale and hold without air.
+      </p>
+      <p>The line moving up represents inhalation and a hold with air.</p>
+      <p>The line moving down represents exhalation and a hold without air.</p>
+      <p>Gently follow the line and breathe with relaxation.</p>
+      <p>
+        When the current level is easy and comfortable, advance to the next level.
+        The full training program consists of 398 levels, all the way up to <b>16 64 32</b>.
+      </p>
+
+      <h3>Keyboard Controls</h3>
       <p>
         You can use the top-left controls or the keyboard left/right arrow buttons to change level.
-        The space bar resets to the start of a fresh inhalation.
+        The space bar and down arrow reset to the start of a fresh inhalation. Click to zoom in or out.
       </p>
       <p>Please relax and enjoy!</p>
-      <button id="closeHelp" onclick="close_help()">Close</button>
+      <button id="closeHelp">Close</button>
     </div>
   </div>
 
@@ -140,12 +161,16 @@
         // Otherwise, increase the exhale hold, and decrease the closed hold to match.
         return [inhale, exhale_hold + 2, exhale_hold + 2];
       }
-      for (i = 0; i < 399; ++i) table.push(get_next(table));
+      for (i = 0; i < 398; ++i) table.push(get_next(table));
       return table;
     }();
     const MINOR_KUMBHAKA = KUMBHAKA_TABLE.slice(0, 69); // From [4,4,4] to [8,32,16].
-    const MEDIUM_KUMBHAKA = KUMBHAKA_TABLE.slice(70, 190); // From [10,10,10] to [12,48,24].
-    const MAJOR_KUMBHAKA = KUMBHAKA_TABLE.slice(191, 399); // From [14,14,14] to [16,64,32].
+    const MEDIUM_KUMBHAKA = KUMBHAKA_TABLE.slice(69, 190); // From [10,10,10] to [12,48,24].
+    const MAJOR_KUMBHAKA = KUMBHAKA_TABLE.slice(190, 399); // From [14,14,14] to [16,64,32].
+
+    const MINOR_KUMBHAKA_START_IDX = 0;
+    const MEDIUM_KUMBHAKA_START_IDX = 69;
+    const MAJOR_KUMBHAKA_START_IDX = 190;
     // @license-end
   </script>
 
@@ -193,11 +218,10 @@
       // What phase of the cycle are we in now?
       let in_cycle_millis = (timestamp - startTimestamp) % cycle_length_millis;
 
-      const millis_per_px = width_millis / canvas.width;
-
       const y_margin_px = 20; // Margin for the active breath line on the top and bottom.
       const top = y_margin_px; // Y-value for a breath line at the top of the canvas.
       const bottom = canvas.height - y_margin_px; // Y-value for a breath line at the bottom of the canvas.
+      const millis_per_px = width_millis / canvas.width;
 
       // Calculate the millis into the cycle at the x=0 leftmost side of the canvas.
       const zero_millis = modulus(in_cycle_millis - (now_offset_px * millis_per_px), cycle_length_millis);
@@ -228,7 +252,7 @@
       // March in pixels from that starting point to the end of the canvas, drawing lines along the way.
       while (x <= canvas.width) {
         let end_x = x + ((cycle_starts_millis[phase + 1] - cycle_starts_millis[phase]) / millis_per_px);
-        let bezier_offset_px = (end_x - x) * 0.5; // 
+        let bezier_offset_px = (end_x - x) * 0.5;
         switch (phase) {
           case 0: // Inhalation.
             ctx.bezierCurveTo(x + bezier_offset_px, bottom, end_x - bezier_offset_px, top, end_x, top);
@@ -259,6 +283,18 @@
     // Show the current Kumbhaka selection in the control panel and update buttons.
     function update_control_panel() {
       currentLevel.textContent = KUMBHAKA_TABLE[kumbhaka_idx].join(" ");
+
+      // Show decorations when in the medium and major kumbhaka tables.
+      if (kumbhaka_idx < MEDIUM_KUMBHAKA_START_IDX) {
+        currentLevel.style.borderTop = "";
+        currentLevel.style.borderBottom = "";
+      } else if (kumbhaka_idx < MAJOR_KUMBHAKA_START_IDX) {
+        currentLevel.style.borderTop = "";
+        currentLevel.style.borderBottom = "1px solid white";
+      } else {
+        currentLevel.style.borderTop = "1px solid white";
+        currentLevel.style.borderBottom = "1px solid white";
+      }
     }
 
     // Move the kumbhaka index left by one. This makes the training easier.
@@ -297,6 +333,7 @@
       switch (event.key) {
         case "ArrowLeft": on_click_left(); break; // Make easier.
         case "ArrowRight": on_click_right(); break; // Make harder.
+        case "ArrowDown": start_animation(); break; // Start from a fresh inhalation.
         case " ": start_animation(); break; // Start from a fresh inhalation.
         case "?": show_help(); break;
         case "Escape": close_help(); break;
@@ -304,10 +341,11 @@
       }
     }
 
-    function on_content_loaded() {
+    function on_content_loaded(event) {
       window.addEventListener("keydown", on_keydown);
       document.getElementById("buttonLeft").addEventListener("click", on_click_left);
       document.getElementById("buttonRight").addEventListener("click", on_click_right);
+      document.getElementById("helpModal").addEventListener("click", close_help); // Close button falls through.
       document.querySelector("body").addEventListener("click", change_speed_easter_egg);
       canvas.addEventListener("click", change_speed_easter_egg);
 
@@ -315,7 +353,7 @@
       start_animation();
     }
 
-    document.addEventListener("DOMContentLoaded", function(e){on_content_loaded()})
+    document.addEventListener("DOMContentLoaded", on_content_loaded)
     // @license-end
   </script>
 </body>
