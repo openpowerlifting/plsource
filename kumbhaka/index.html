@@ -151,7 +151,7 @@
     // @license magnet:?xt=urn:btih:0b31508aeb0634b347b8270c7bee4d411b5d4109&dn=agpl-3.0.txt AGPL-v3-or-Later
     // An auto-generated Kumbhaka progression table according to the progression rules.
     let KUMBHAKA_TABLE = function(){
-      let table = [[4, 4, 4]]; // [inhalation, closed hold, exhalation + open hold].
+      let table = [[4, 4, 4]]; // [inhalation, closed hold, exhalation + empty hold].
       function get_next(table) {
         let [inhale, closed_hold, exhale_hold] = table[table.length - 1];
         // Increase the closed hold by 2 counts until it's twice the exhale hold.
@@ -188,7 +188,12 @@
 
     // Shared state updated by the animation process.
     let startTimestamp = 0; // Time reference in millis for the cycle start, or zero. Drift is fine.
-    let kumbhaka_idx = 0; // Index of current cycle in the KUMBHAKA_TABLE.
+
+    // Index of current cycle in the KUMBHAKA_TABLE.
+    let kumbhaka_idx = Math.min(
+      Math.max(localStorage.getItem("kumbhaka_idx"), 0),
+      KUMBHAKA_TABLE.length - 1
+    ) || 0;
 
     // Starts the animation from the the Minor Kumbhaka table.
     function start_animation() {
@@ -211,7 +216,7 @@
         0, // Inhalation.
         cycle[0] * 1000, // Closed hold.
         (cycle[0] + cycle[1]) * 1000, // Exhalation
-        (cycle[0] + cycle[1] + (cycle[2] / 2)) * 1000, // Open hold.
+        (cycle[0] + cycle[1] + (cycle[2] / 2)) * 1000, // Empty hold.
         cycle_length_millis, // Not a phase, but here to allow saying "phase+1" later on.
       ];
 
@@ -231,7 +236,7 @@
       if (zero_millis < cycle_starts_millis[1]) { phase = 0; } // Inhalation.
       else if (zero_millis < cycle_starts_millis[2]) { phase = 1; } // Closed hold.
       else if (zero_millis < cycle_starts_millis[3]) { phase = 2; } // Exhalation.
-      else { phase = 3; } // Open hold.
+      else { phase = 3; } // Empty hold.
 
       // What's the starting x-coordinate of that phase (may be negative)?
       let x = (cycle_starts_millis[phase] - zero_millis) / millis_per_px;
@@ -261,7 +266,7 @@
           case 2: // Exhalation.
             ctx.bezierCurveTo(x + bezier_offset_px, top, end_x - bezier_offset_px, bottom, end_x, bottom);
             break;
-          case 3: ctx.lineTo(end_x, bottom); break; // Open hold.
+          case 3: ctx.lineTo(end_x, bottom); break; // Empty hold.
         }
         x = end_x; // Shift the starting x-position for the next phase.
         phase = (phase + 1) % 4; // Advance the phase.
@@ -301,12 +306,14 @@
     function on_click_left() {
       kumbhaka_idx = Math.max(kumbhaka_idx - 1, 0);
       update_control_panel();
+      localStorage.setItem("kumbhaka_idx", kumbhaka_idx); // Persist across sessions.
       start_animation(); // Begin from a fresh inhalation.
     }
     // Move the kumbhaka index right by one. This makes the training harder.
     function on_click_right() {
       kumbhaka_idx = Math.min(kumbhaka_idx + 1, KUMBHAKA_TABLE.length - 1);
       update_control_panel();
+      localStorage.setItem("kumbhaka_idx", kumbhaka_idx); // Persist across sessions.
       start_animation(); // Begin from a fresh inhalation.
     }
 
